@@ -1,3 +1,10 @@
+*.o
+*.exe
+*.obj
+*.mtl
+*.tga
+*.png
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
