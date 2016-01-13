@@ -13,14 +13,26 @@ const TGAColor red   = TGAColor(255, 0,   0,   255);
 
 
 struct vertex{
+  float x, y, z, w;
+};
+
+struct texture_coordinate{
+  float u, v, w;
+};
+
+struct vertex_normal{
   float x, y, z;
 };
 
 struct face {
-  int v1, v2, v3;
+  std::vector<int> vertices;
+  std::vector<int> texture_coordinates;
+  std::vector<int> vertex_normals;
 };
 
 std::vector<vertex> vertices;
+std::vector<texture_coordinate> texture_coordinates;
+std::vector<vertex_normal> vertex_normals;
 std::vector<face> faces;
 
 void readobj(const char *filename);
@@ -36,59 +48,61 @@ int main(int argc, char** argv) {
 }
 
 void readobj(const char *filename){
-    std::ifstream in;
-    in.open (filename, std::ifstream::in);
-    if (in.fail()) {
-	std::cerr << "cant open " << filename << std::endl;
-	return;
+  std::ifstream in;
+  in.open (filename, std::ifstream::in);
+  if (in.fail()) {
+    std::cerr << "cant open " << filename << std::endl;
+    return;
+  }
+  std::string line;
+  while (!in.eof()) {
+    std::getline(in, line);
+    std::istringstream iss(line.c_str());
+    char trash;
+    if (!line.compare(0, 2, "v ")) {
+      iss >> trash;
+      vertex v;
+      iss >> v.x >> v.y >> v.z;
+      vertices.push_back(v);
+    } else if (!line.compare(0, 2, "vt")) {
+      iss >> trash;
+      texture_coordinate vt;
+      iss >> vt.u >> vt.v;
+      texture_coordinates.push_back(vt);
+    } else if (!line.compare(0, 2, "vn")) {
+      iss >> trash;
+      vertex_normal vn;
+      iss >> vn.x >> vn.y >> vn.z;
+      vertex_normals.push_back(vn);
+    } else if (!line.compare(0, 2, "f ")) {
+      int vert, tex, norm;
+      face f;
+      iss >> trash;
+      for( int i = 0; i < 3; i++) {
+        iss >> vert >> trash >> tex >> trash >> norm;
+        f.vertices.push_back(--vert);
+        f.texture_coordinates.push_back(--tex);
+        f.vertex_normals.push_back(--norm);
+        faces.push_back(f);
+      }
     }
-    std::string line;
-    while (!in.eof()) {
-        std::getline(in, line);
-        std::istringstream iss(line.c_str());
-        char trash;
-        if (!line.compare(0, 2, "v ")) {
-            iss >> trash;
-            vertex v;
-	    iss >> v.x >> v.y >> v.z;
-            vertices.push_back(v);
-        } else if (!line.compare(0, 2, "f ")) {
-            face f;
-            int itrash;
-            iss >> trash;
-	    iss >> f.v1 >> trash >> itrash >> trash >> itrash;
-	    iss >> f.v2 >> trash >> itrash >> trash >> itrash;
-	    iss >> f.v3 >> trash >> itrash >> trash >> itrash;
-
-	    f.v1--;
-	    f.v2--;
-	    f.v3--;
-
-            faces.push_back(f);
-        }
-    }
-    std::cerr << "# v# " << vertices.size() << " f# "  << faces.size() << std::endl;
+  }
 }
 
 void wire(TGAImage &image, TGAColor color){
-  std::cerr << faces.size() <<  "gjkghkjgkgkgjvgjhg\n";
+  for (int iface=0; iface < (int)faces.size(); iface++){
+    int vertNb = (int)faces[iface].vertices.size();
 
-  vertex v_1a = vertices[faces[0].v1];
-  vertex v_2a = vertices[faces[0].v2];
-  vertex v_3a = vertices[faces[0].v3];
+    for (int ivert=1; ivert < vertNb ; ivert++){
+      vertex v1 = vertices[faces[iface].vertices[ivert-1]];
+      vertex v2 = vertices[faces[iface].vertices[ivert]];
 
-std::cerr << v_1a.x << " " << v_1a.y << std::endl;
-std::cerr << v_2a.x << " " << v_2a.y << std::endl;
-std::cerr << v_3a.x << " " << v_3a.y << std::endl;
+      line((v1.x + 1) * 400, (v1.y+1)*400, (v2.x+1)*400, (v2.y+1)*400, image, color);
+    }
 
-  for (int i=0; i<(int)faces.size(); i++ ){
-    vertex v_1 = vertices[faces[i].v1];
-    vertex v_2 = vertices[faces[i].v2];
-    vertex v_3 = vertices[faces[i].v3];
-
-    line((v_1.x + 1) * 400, (v_1.y+1)*400, (v_2.x+1)*400, (v_2.y+1)*400, image, color);
-    line((v_1.x + 1) * 400, (v_1.y+1)*400, (v_3.x+1)*400, (v_3.y+1)*400, image, color);
-    line((v_3.x + 1) * 400, (v_3.y+1)*400, (v_2.x+1)*400, (v_2.y+1)*400, image, color);
+    vertex v1 = vertices[faces[iface].vertices[vertNb-1]];
+    vertex v2 = vertices[faces[iface].vertices[0]];
+    line((v1.x + 1) * 400, (v1.y+1)*400, (v2.x+1)*400, (v2.y+1)*400, image, color);
   }
 }
 
