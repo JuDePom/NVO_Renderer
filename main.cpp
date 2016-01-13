@@ -9,6 +9,8 @@
 #include "renderer.h"
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
+const TGAColor black = TGAColor(  0,   0,   0, 255);
+const TGAColor gray  = TGAColor(140, 140, 140, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 
 
@@ -37,11 +39,13 @@ std::vector<face> faces;
 
 void readobj(const char *filename);
 void wire(TGAImage &image, TGAColor color);
+void draw(TGAImage &image, TGAColor color);
 
 int main(int argc, char** argv) {
   readobj("./african.obj");
   TGAImage image(800, 800, TGAImage::RGB);
-  wire(image, red);
+  draw(image, gray);
+  wire(image, black);
   image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
   image.write_tga_file("output.tga");
   return 0;
@@ -103,6 +107,21 @@ void wire(TGAImage &image, TGAColor color){
     vertex v1 = vertices[faces[iface].vertices[vertNb-1]];
     vertex v2 = vertices[faces[iface].vertices[0]];
     line((v1.x + 1) * 400, (v1.y+1)*400, (v2.x+1)*400, (v2.y+1)*400, image, color);
+  }
+}
+
+void draw(TGAImage &image, TGAColor color){
+  for (int iface=0; iface < (int)faces.size(); iface++){
+    int vertNb = (int)faces[iface].vertices.size();
+
+    for (int ivert=2; ivert < vertNb ; ivert++){
+      vertex v1 = vertices[faces[iface].vertices[ivert-2]];
+      vertex v2 = vertices[faces[iface].vertices[ivert-1]];
+      vertex v3 = vertices[faces[iface].vertices[ivert]];
+
+
+      triangle((v1.x + 1) * 400, (v1.y+1)*400, (v2.x+1)*400, (v2.y+1)*400, (v3.x+1)*400, (v3.y+1)*400, image, color);
+    }
   }
 }
 
