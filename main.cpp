@@ -7,30 +7,7 @@
 
 #include "tgaimage.h"
 #include "renderer.h"
-
-const TGAColor white = TGAColor(255, 255, 255, 255);
-const TGAColor black = TGAColor(  0,   0,   0, 255);
-const TGAColor gray  = TGAColor(140, 140, 140, 255);
-const TGAColor red   = TGAColor(255, 0,   0,   255);
-
-
-struct vertex{
-  float x, y, z, w;
-};
-
-struct texture_coordinate{
-  float u, v, w;
-};
-
-struct vertex_normal{
-  float x, y, z;
-};
-
-struct face {
-  std::vector<int> vertices;
-  std::vector<int> texture_coordinates;
-  std::vector<int> vertex_normals;
-};
+#include "structures.h"
 
 std::vector<vertex> vertices;
 std::vector<texture_coordinate> texture_coordinates;
@@ -41,11 +18,17 @@ void readobj(const char *filename);
 void wire(TGAImage &image, TGAColor color);
 void draw(TGAImage &image, TGAColor color);
 
+
+const TGAColor white = TGAColor(255, 255, 255, 255);
+const TGAColor black = TGAColor(  0,   0,   0, 255);
+const TGAColor gray  = TGAColor(140, 140, 140, 255);
+const TGAColor red   = TGAColor(255, 0,   0,   255);
+
 int main(int argc, char** argv) {
   readobj("./african.obj");
   TGAImage image(800, 800, TGAImage::RGB);
-  draw(image, gray);
-  wire(image, black);
+  draw(image, white);
+  //wire(image, gray);
   image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
   image.write_tga_file("output.tga");
   return 0;
@@ -119,8 +102,7 @@ void draw(TGAImage &image, TGAColor color){
       vertex v2 = vertices[faces[iface].vertices[ivert-1]];
       vertex v3 = vertices[faces[iface].vertices[ivert]];
 
-
-      triangle((v1.x + 1) * 400, (v1.y+1)*400, (v2.x+1)*400, (v2.y+1)*400, (v3.x+1)*400, (v3.y+1)*400, image, color);
+      triangle(v1, v2, v3, image, color);
     }
   }
 }
