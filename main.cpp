@@ -17,7 +17,7 @@ std::vector<face> faces;
 
 void readobj(const char *filename);
 void wire(TGAImage &image, TGAColor color);
-void draw(TGAImage &image, TGAColor color);
+void draw(TGAImage &image, TGAImage &tex);
 
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
@@ -28,13 +28,16 @@ const TGAColor red   = TGAColor(255, 0,   0,   255);
 float z_buffer[1000*1000];
 
 int main(int argc, char** argv) {
+  TGAImage image(1000, 1000, TGAImage::RGB);
+  TGAImage tex;
 
   for (size_t i=1000*1000; i--; z_buffer[i] = -std::numeric_limits<float>::max());
 
+  readobj("./diablo3/diablo3_pose.obj");
+  tex.read_tga_file("./diablo3/diablo3_pose_diffuse.tga");
 
-  readobj("./african.obj");
-  TGAImage image(1000, 1000, TGAImage::RGB);
-  draw(image, white);
+  tex.flip_vertically();
+  draw(image, tex);
   //wire(image, gray);
   image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
   image.write_tga_file("output.tga");
@@ -59,9 +62,9 @@ void readobj(const char *filename){
       iss >> v.x >> v.y >> v.z;
       vertices.push_back(v);
     } else if (!line.compare(0, 2, "vt")) {
-      iss >> trash;
+      iss >> trash >> trash;
       texture_coordinate vt;
-      iss >> vt.u >> vt.v;
+      iss >> vt.u >> vt.v >> vt.w ;
       texture_coordinates.push_back(vt);
     } else if (!line.compare(0, 2, "vn")) {
       iss >> trash;
@@ -100,16 +103,19 @@ void wire(TGAImage &image, TGAColor color){
   }
 }
 
-void draw(TGAImage &image, TGAColor color, TGAImage &tex){
+void draw(TGAImage &image, TGAImage &tex){
+
   for (int iface=0; iface < (int)faces.size(); iface++){
-    int vertNb = (int)faces[iface].vertices.size();
+    if (faces[iface].vertices.size() > 2){
+      vertex v1 = vertices[ faces[iface].vertices[0]];
+      vertex v2 = vertices[faces[iface].vertices[1]];
+      vertex v3 = vertices[faces[iface].vertices[2]];
 
-    for (int ivert=2; ivert < vertNb ; ivert++){
-      vertex v1 = vertices[faces[iface].vertices[ivert-2]];
-      vertex v2 = vertices[faces[iface].vertices[ivert-1]];
-      vertex v3 = vertices[faces[iface].vertices[ivert]];
+      texture_coordinate uv1 = texture_coordinates[faces[iface].texture_coordinates[0]];
+      texture_coordinate uv2 = texture_coordinates[faces[iface].texture_coordinates[1]];
+      texture_coordinate uv3 = texture_coordinates[faces[iface].texture_coordinates[2]];
 
-      triangle(v1, v2, v3, image, color, z_buffer);
+      triangle(v1, v2, v3, uv1, uv2, uv3, image, tex, z_buffer);
     }
   }
 }

@@ -64,7 +64,8 @@ vertex barycentre(vertex v1, vertex v2, vertex v3, int x, int y){
   return v;
 }
 
-void fillTriangle(vertex v1, vertex v2, vertex v3, TGAImage &image, TGAColor color, float* z_buffer){
+void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_coordinate uv2, texture_coordinate uv3, TGAImage &image, TGAImage &tex, float* z_buffer, float intensity){
+
   v1.x += 1; v1.x *= 500;
   v1.y += 1; v1.y *= 500;
 
@@ -74,8 +75,7 @@ void fillTriangle(vertex v1, vertex v2, vertex v3, TGAImage &image, TGAColor col
   v3.x += 1; v3.x *= 500;
   v3.y += 1; v3.y *= 500;
 
-  int minx = (v1.x < v2.x ? v1.x : v2.x );
-  minx = (minx < v3.x ? minx : v3.x);
+  int minx = std::min(std::min(v1.x, v2.x), v3.x);
 
   int miny = (v1.y < v2.y ? v1.y : v2.y );
   miny = (miny < v3.y ? miny : v3.y);
@@ -93,14 +93,23 @@ void fillTriangle(vertex v1, vertex v2, vertex v3, TGAImage &image, TGAColor col
         float z = v.x*v1.z + v.y*v2.z + v.z*v3.z;
         if ( z > z_buffer[i+j*1000] ) {
           z_buffer[i+j*1000] = z;
-          image.set(i, j, color);
+
+          int tex_x = (v.x*uv1.u + v.y*uv2.u + v.z*uv3.u) * tex.get_width();
+          int tex_y = (v.x*uv1.v + v.y*uv2.v + v.z*uv3.v) * tex.get_height();
+
+          TGAColor fuck = tex.get(tex_x, tex_y);
+          fuck.r *= intensity;
+          fuck.g *= intensity;
+          fuck.b *= intensity;
+
+          image.set(i, j, fuck);
         }
       }
     }
   }
 }
 
-void triangle(vertex v1, vertex v2, vertex v3, TGAImage &image, TGAColor color, float* z_buffer){
+void triangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_coordinate uv2, texture_coordinate uv3, TGAImage &image, TGAImage &tex, float* z_buffer){
 
   vertex vt1, vt2, vn;
   // Vectorisation
@@ -125,6 +134,6 @@ void triangle(vertex v1, vertex v2, vertex v3, TGAImage &image, TGAColor color, 
 
   float intensity = std::abs(dot);
 
-  TGAColor ncolor = TGAColor(color.r * intensity, color.g * intensity, color.b * intensity, color.a);
-  fillTriangle(v1, v2, v3, image, ncolor, z_buffer);
+  //TGAColor ncolor = TGAColor(color.r * intensity, color.g * intensity, color.b * intensity, color.a);
+  fillTriangle(v1, v2, v3, uv1, uv2, uv3, image, tex, z_buffer, intensity);
 }
