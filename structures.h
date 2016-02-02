@@ -3,17 +3,23 @@
 
 #include <vector>
 
-struct vertex{
-  float x, y, z, w;
+struct ScreenCoord{
+  int x, y;
 };
 
-vertex cross(vertex vt1, vertex vt2){
-  vertex vn;
-  vn.x = (vt1.y*vt2.z-vt1.z*vt2.y);
-  vn.y = -(vt1.x*vt2.z-vt1.z*vt2.x);
-  vn.z = (vt1.x*vt2.y-vt1.y*vt2.x);
-  return vn;
-}
+struct vertex{
+  float x, y, z, w;
+
+  vertex() {}
+  vertex(float X, float Y, float Z) : x(X), y(Y), z(Z) {}
+
+  ScreenCoord _2D(){
+    ScreenCoord sc;
+    sc.x = (x+1)*400;
+    sc.y = (y+1)*400;
+    return sc;
+  }
+};
 
 struct texture_coordinate{
   float u, v, w;

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <limits>
 
 #include "tgaimage.h"
 #include "renderer.h"
@@ -24,9 +25,15 @@ const TGAColor black = TGAColor(  0,   0,   0, 255);
 const TGAColor gray  = TGAColor(140, 140, 140, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 
+float z_buffer[1000*1000];
+
 int main(int argc, char** argv) {
+
+  for (size_t i=1000*1000; i--; z_buffer[i] = -std::numeric_limits<float>::max());
+
+
   readobj("./african.obj");
-  TGAImage image(800, 800, TGAImage::RGB);
+  TGAImage image(1000, 1000, TGAImage::RGB);
   draw(image, white);
   //wire(image, gray);
   image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
@@ -84,16 +91,16 @@ void wire(TGAImage &image, TGAColor color){
       vertex v1 = vertices[faces[iface].vertices[ivert-1]];
       vertex v2 = vertices[faces[iface].vertices[ivert]];
 
-      line((v1.x + 1) * 400, (v1.y+1)*400, (v2.x+1)*400, (v2.y+1)*400, image, color);
+      line(v1._2D(), v2._2D(), image, color);
     }
 
     vertex v1 = vertices[faces[iface].vertices[vertNb-1]];
     vertex v2 = vertices[faces[iface].vertices[0]];
-    line((v1.x + 1) * 400, (v1.y+1)*400, (v2.x+1)*400, (v2.y+1)*400, image, color);
+    line(v1._2D(), v2._2D(), image, color);
   }
 }
 
-void draw(TGAImage &image, TGAColor color){
+void draw(TGAImage &image, TGAColor color, TGAImage &tex){
   for (int iface=0; iface < (int)faces.size(); iface++){
     int vertNb = (int)faces[iface].vertices.size();
 
@@ -102,7 +109,7 @@ void draw(TGAImage &image, TGAColor color){
       vertex v2 = vertices[faces[iface].vertices[ivert-1]];
       vertex v3 = vertices[faces[iface].vertices[ivert]];
 
-      triangle(v1, v2, v3, image, color);
+      triangle(v1, v2, v3, image, color, z_buffer);
     }
   }
 }

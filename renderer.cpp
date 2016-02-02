@@ -9,7 +9,18 @@ struct Light{
 
 Light light = Light(0., 0., 1.);
 
-void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
+vertex cross(vertex vt1, vertex vt2){
+  vertex vn;
+  vn.x = (vt1.y*vt2.z-vt1.z*vt2.y);
+  vn.y = -(vt1.x*vt2.z-vt1.z*vt2.x);
+  vn.z = (vt1.x*vt2.y-vt1.y*vt2.x);
+  return vn;
+}
+
+void line(ScreenCoord p1, ScreenCoord p2, TGAImage &image, TGAColor color) {
+  int x0 = p1.x, y0 = p1.y;
+  int x1 = p2.x, y1 = p2.y;
+
   bool steep = false;
   if (std::abs(x0-x1)<std::abs(y0-y1)) {
     std::swap(x0, y0);
@@ -39,16 +50,9 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
   }
 }
 
-
-bool barycentre(int x0, int y0, int x1, int y1, int x2, int y2, int x, int y){
-  vertex vt1, vt2;
-  vt1.x = x2 - x0;
-  vt1.y = x1 - x0;
-  vt1.z = x0 - x;
-
-  vt2.x = y2 - y0;
-  vt2.y = y1 - y0;
-  vt2.z = y0 - y;
+vertex barycentre(vertex v1, vertex v2, vertex v3, int x, int y){
+  vertex vt1 = vertex(v3.x-v1.x, v2.x-v1.x, v1.x-x);
+  vertex vt2 = vertex(v3.y-v1.y, v2.y-v1.y, v1.y-y);
 
   vertex u = cross(vt1, vt2);
 
@@ -57,36 +61,46 @@ bool barycentre(int x0, int y0, int x1, int y1, int x2, int y2, int x, int y){
   v.y = u.y/u.z;
   v.z = u.x/u.z;
 
-  if (v.x >= 0 && v.y >= 0 && v.z >= 0)
-    return true;
-  return false;
+  return v;
 }
 
-void fillTriangle(int x0, int y0, int x1, int y1, int x2, int y2, TGAImage &image, TGAColor color){
-  int minx = (x0 < x1 ? x0 : x1 );
-  minx = (minx < x2 ? minx : x2);
+void fillTriangle(vertex v1, vertex v2, vertex v3, TGAImage &image, TGAColor color, float* z_buffer){
+  v1.x += 1; v1.x *= 500;
+  v1.y += 1; v1.y *= 500;
 
-  int miny = (y0 < y1 ? y0 : y1 );
-  miny = (miny < y2 ? miny : y2);
+  v2.x += 1; v2.x *= 500;
+  v2.y += 1; v2.y *= 500;
 
-  int maxx = (x0 > x1 ? x0 : x1 );
-  maxx = (maxx > x2 ? maxx : x2);
+  v3.x += 1; v3.x *= 500;
+  v3.y += 1; v3.y *= 500;
 
-  int maxy = (y0 > y1 ? y0 : y1 );
-  maxy = (maxy > y2 ? maxy : y2);
+  int minx = (v1.x < v2.x ? v1.x : v2.x );
+  minx = (minx < v3.x ? minx : v3.x);
 
-  for (int i=minx; i<maxx; i++){
-    for (int j=miny; j<maxy; j++){
-      if ( barycentre(x0, y0, x1, y1, x2, y2, i, j) ) {
-        image.set(i, j, color);
+  int miny = (v1.y < v2.y ? v1.y : v2.y );
+  miny = (miny < v3.y ? miny : v3.y);
+
+  int maxx = (v1.x > v2.x ? v1.x : v2.x );
+  maxx = (maxx > v3.x ? maxx : v3.x);
+
+  int maxy = (v1.y > v2.y ? v1.y : v2.y );
+  maxy = (maxy > v3.y ? maxy : v3.y);
+
+  for (int i=minx; i<=maxx; i++){
+    for (int j=miny; j<=maxy; j++){
+      vertex v = barycentre(v1, v2, v3, i, j);
+      if ( v.x>=0 && v.y>=0 && v.z>=0 ) {
+        float z = v.x*v1.z + v.y*v2.z + v.z*v3.z;
+        if ( z > z_buffer[i+j*1000] ) {
+          z_buffer[i+j*1000] = z;
+          image.set(i, j, color);
+        }
       }
     }
   }
-
-
 }
 
-void triangle(vertex v1, vertex v2, vertex v3, TGAImage &image, TGAColor color){
+void triangle(vertex v1, vertex v2, vertex v3, TGAImage &image, TGAColor color, float* z_buffer){
 
   vertex vt1, vt2, vn;
   // Vectorisation
@@ -100,23 +114,17 @@ void triangle(vertex v1, vertex v2, vertex v3, TGAImage &image, TGAColor color){
 
   vn = cross(vt1,vt2);
 
-  //vn.x = (vt1.y*vt2.z-vt1.z*vt2.y);
-  //vn.y = (vt1.x*vt2.z-vt1.z*vt2.x);
-  //vn.z = (vt1.x*vt2.y-vt1.y*vt2.x);
-
   // Normalisation
   float length = std::sqrt( vn.x*vn.x + vn.y*vn.y + vn.z*vn.z);
-  vn.x = vn.x / length;
-  vn.y = vn.y / length;
-  vn.z = vn.z / length;
+  vn.x /= length;
+  vn.y /= length;
+  vn.z /= length;
 
   // Produit scalaire
   float dot = vn.x*light.x + vn.y*light.y + vn.z*light.z;
 
-  float intensity = dot;
+  float intensity = std::abs(dot);
 
-  if(intensity >= 0.){
-    TGAColor ncolor = TGAColor(color.r * intensity, color.g * intensity, color.b * intensity, color.a);
-    fillTriangle((v1.x+1)*400, (v1.y+1)*400, (v2.x+1)*400, (v2.y+1)*400, (v3.x+1)*400, (v3.y+1)*400, image, ncolor);
-  }
+  TGAColor ncolor = TGAColor(color.r * intensity, color.g * intensity, color.b * intensity, color.a);
+  fillTriangle(v1, v2, v3, image, ncolor, z_buffer);
 }
