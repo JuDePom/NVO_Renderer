@@ -1,10 +1,9 @@
 #include "renderer.h"
 
-struct Light{
+struct Light {
   float x, y, z;
 
-  Light(float X, float Y, float Z) : x(X), y(Y), z(Z) {
-  }
+  Light(float X, float Y, float Z) : x(X), y(Y), z(Z) {}
 };
 
 Light light = Light(0., 0., 1.);
@@ -12,42 +11,9 @@ Light light = Light(0., 0., 1.);
 vertex cross(vertex vt1, vertex vt2){
   vertex vn;
   vn.x = (vt1.y*vt2.z-vt1.z*vt2.y);
-  vn.y = -(vt1.x*vt2.z-vt1.z*vt2.x);
+  vn.y = (vt1.z*vt2.x-vt1.x*vt2.z);
   vn.z = (vt1.x*vt2.y-vt1.y*vt2.x);
   return vn;
-}
-
-void line(ScreenCoord p1, ScreenCoord p2, TGAImage &image, TGAColor color) {
-  int x0 = p1.x, y0 = p1.y;
-  int x1 = p2.x, y1 = p2.y;
-
-  bool steep = false;
-  if (std::abs(x0-x1)<std::abs(y0-y1)) {
-    std::swap(x0, y0);
-    std::swap(x1, y1);
-    steep = true;
-  }
-  if (x0>x1) {
-    std::swap(x0, x1);
-    std::swap(y0, y1);
-  }
-  int dx = x1-x0;
-  int dy = y1-y0;
-  int derror2 = std::abs(dy)*2;
-  int error2 = 0;
-  int y = y0;
-  for (int x=x0; x<=x1; x++) {
-    if (steep) {
-      image.set(y, x, color);
-    } else {
-      image.set(x, y, color);
-    }
-    error2 += derror2;
-    if (error2 > dx) {
-      y += (y1>y0?1:-1);
-      error2 -= dx*2;
-    }
-  }
 }
 
 vertex barycentre(vertex v1, vertex v2, vertex v3, int x, int y){
@@ -64,27 +30,45 @@ vertex barycentre(vertex v1, vertex v2, vertex v3, int x, int y){
   return v;
 }
 
-void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_coordinate uv2, texture_coordinate uv3, TGAImage &image, TGAImage &tex, float* z_buffer, float intensity){
+void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_coordinate uv2, texture_coordinate uv3, TGAImage &image, TGAImage &tex, float* z_buffer, float intensity, matrice view_port){
+  double alpha = -20 * M_PI/180;
 
-  v1.x += 1; v1.x *= 500;
-  v1.y += 1; v1.y *= 500;
+  // Matrice de rotation
+  matrice r = matrice(4, 4);
+  r.set(0, 0, cos(alpha));
+  r.set(0, 2, -sin(alpha));
+  r.set(2, 2, cos(alpha));
+  r.set(2, 0, sin(alpha));
+  r.set(1, 1, 1);
+  r.set(3, 3, 1);
 
-  v2.x += 1; v2.x *= 500;
-  v2.y += 1; v2.y *= 500;
+  // Matrice de projection
+  matrice hard_coded = matrice(4, 4);
+  hard_coded.set(0,0, 1.);
+  hard_coded.set(1,1, 1.);
+  hard_coded.set(2,2, 1.);
+  hard_coded.set(3,3, 1.);
+  hard_coded.set(3,2, -1/3.);
 
-  v3.x += 1; v3.x *= 500;
-  v3.y += 1; v3.y *= 500;
+  matrice res = view_port.multiply(hard_coded.multiply(r));
+
+  matrice m1 = res.multiply(v1.toMat());
+  matrice m2 = res.multiply(v2.toMat());
+  matrice m3 = res.multiply(v3.toMat());
+
+  v1 = vertex(m1);
+  v2 = vertex(m2);
+  v3 = vertex(m3);
 
   int minx = std::min(std::min(v1.x, v2.x), v3.x);
+  int miny = std::min(std::min(v1.y, v2.y), v3.y);
+  int maxx = std::max(std::max(v1.x, v2.x), v3.x);
+  int maxy = std::max(std::max(v1.y, v2.y), v3.y);
 
-  int miny = (v1.y < v2.y ? v1.y : v2.y );
-  miny = (miny < v3.y ? miny : v3.y);
-
-  int maxx = (v1.x > v2.x ? v1.x : v2.x );
-  maxx = (maxx > v3.x ? maxx : v3.x);
-
-  int maxy = (v1.y > v2.y ? v1.y : v2.y );
-  maxy = (maxy > v3.y ? maxy : v3.y);
+  minx = std::max(0, minx);
+  miny = std::max(0, miny);
+  maxx = std::min(image.get_width()-1, maxx);
+  maxy = std::min(image.get_height()-1, maxy);
 
   for (int i=minx; i<=maxx; i++){
     for (int j=miny; j<=maxy; j++){
@@ -109,7 +93,7 @@ void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, textu
   }
 }
 
-void triangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_coordinate uv2, texture_coordinate uv3, TGAImage &image, TGAImage &tex, float* z_buffer){
+void triangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_coordinate uv2, texture_coordinate uv3, TGAImage &image, TGAImage &tex, float* z_buffer, matrice view_port){
 
   vertex vt1, vt2, vn;
   // Vectorisation
@@ -135,5 +119,5 @@ void triangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_c
   float intensity = std::abs(dot);
 
   //TGAColor ncolor = TGAColor(color.r * intensity, color.g * intensity, color.b * intensity, color.a);
-  fillTriangle(v1, v2, v3, uv1, uv2, uv3, image, tex, z_buffer, intensity);
+  fillTriangle(v1, v2, v3, uv1, uv2, uv3, image, tex, z_buffer, intensity, view_port);
 }

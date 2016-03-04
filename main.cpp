@@ -24,13 +24,28 @@ const TGAColor black = TGAColor(  0,   0,   0, 255);
 const TGAColor gray  = TGAColor(140, 140, 140, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 
-float z_buffer[1000*1000];
+const int render_width = 1000;
+const int render_height = 1000;
+
+matrice view_port = matrice(4, 4);
+
+float z_buffer[render_width*render_height];
 
 int main(int argc, char** argv) {
-  TGAImage image(1000, 1000, TGAImage::RGB);
+
+
+  view_port.set(0,0, render_width/2);
+  view_port.set(1,1, render_height/2);
+  view_port.set(2,2, 1);
+  view_port.set(3,3, 1);
+
+  view_port.set(0,3, render_width/2);
+  view_port.set(1,3, render_height/2);
+
+  TGAImage image(render_width, render_height, TGAImage::RGB);
   TGAImage tex;
 
-  for (size_t i=1000*1000; i--; z_buffer[i] = -std::numeric_limits<float>::max());
+  for (size_t i=render_width*render_height; i--; z_buffer[i] = -std::numeric_limits<float>::max());
 
   readobj("./afr/african_head_fun.obj");
   tex.read_tga_file("./afr/african_head_diffuse.tga");
@@ -95,7 +110,8 @@ void draw(TGAImage &image, TGAImage &tex){
       texture_coordinate uv2 = texture_coordinates[faces[iface].texture_coordinates[1]];
       texture_coordinate uv3 = texture_coordinates[faces[iface].texture_coordinates[2]];
 
-      triangle(v1, v2, v3, uv1, uv2, uv3, image, tex, z_buffer);
+
+      triangle(v1, v2, v3, uv1, uv2, uv3, image, tex, z_buffer, view_port);
     }
   }
 }
