@@ -89,6 +89,8 @@ struct texture_coordinate{
 
 struct vertex_normal{
   float x, y, z;
+
+  vertex_normal() : x(0), y(0), z(0) {};
 };
 
 struct face {

@@ -7,6 +7,7 @@ struct Light {
 };
 
 Light light = Light(0., 0., 1.);
+float ambientLight = 0.1f;
 
 vertex cross(vertex vt1, vertex vt2){
   vertex vn;
@@ -30,8 +31,8 @@ vertex barycentre(vertex v1, vertex v2, vertex v3, int x, int y){
   return v;
 }
 
-void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_coordinate uv2, texture_coordinate uv3, TGAImage &image, TGAImage &tex, float* z_buffer, float intensity, matrice view_port){
-  double alpha = -20 * M_PI/180;
+void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_coordinate uv2, texture_coordinate uv3, vertex_normal vn1, vertex_normal vn2, vertex_normal vn3, TGAImage &image, TGAImage &tex, float* z_buffer, matrice view_port){
+  double alpha = 70 * M_PI/180;
 
   // Matrice de rotation
   matrice r = matrice(4, 4);
@@ -72,52 +73,42 @@ void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, textu
 
   for (int i=minx; i<=maxx; i++){
     for (int j=miny; j<=maxy; j++){
-      vertex v = barycentre(v1, v2, v3, i, j);
-      if ( v.x>=0 && v.y>=0 && v.z>=0 ) {
-        float z = v.x*v1.z + v.y*v2.z + v.z*v3.z;
+      vertex bar = barycentre(v1, v2, v3, i, j);
+      if ( bar.x>=0 && bar.y>=0 && bar.z>=0 ) {
+        float z = bar.x*v1.z + bar.y*v2.z + bar.z*v3.z;
         if ( z > z_buffer[i+j*1000] ) {
           z_buffer[i+j*1000] = z;
 
-          int tex_x = (v.x*uv1.u + v.y*uv2.u + v.z*uv3.u) * tex.get_width();
-          int tex_y = (v.x*uv1.v + v.y*uv2.v + v.z*uv3.v) * tex.get_height();
 
-          TGAColor fuck = tex.get(tex_x, tex_y);
-          fuck.r *= intensity;
-          fuck.g *= intensity;
-          fuck.b *= intensity;
+          int tex_x = (bar.x*uv1.u + bar.y*uv2.u + bar.z*uv3.u) * tex.get_width();
+          int tex_y = (bar.x*uv1.v + bar.y*uv2.v + bar.z*uv3.v) * tex.get_height();
+/*
+          bar.x = 0;
+          bar.y = 1;
+          bar.z = 0;
+*/
+          vertex_normal vn;
+          vn.x = vn1.x * bar.x + vn2.x * bar.y + vn3.x * bar.z;
+          vn.y = vn1.y * bar.x + vn2.y * bar.y + vn3.y * bar.z;
+          vn.z = vn1.z * bar.x + vn2.z * bar.y + vn3.z * bar.z;
 
-          image.set(i, j, fuck);
+          float length = std::sqrt( vn.x*vn.x + vn.y*vn.y + vn.z*vn.z);
+          vn.x /= length;
+          vn.y /= length;
+          vn.z /= length;
+
+          float dot = vn.x*light.x + vn.y*light.y + vn.z*light.z;
+
+          dot = std::min( std::max( dot, ambientLight), 1.f);
+
+          TGAColor color = tex.get(tex_x, tex_y);
+          color.r *= dot;
+          color.g *= dot;
+          color.b *= dot;
+
+          image.set(i, j, color);
         }
       }
     }
   }
-}
-
-void triangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_coordinate uv2, texture_coordinate uv3, TGAImage &image, TGAImage &tex, float* z_buffer, matrice view_port){
-
-  vertex vt1, vt2, vn;
-  // Vectorisation
-  vt1.x = (v2.x-v1.x);
-  vt1.y = (v2.y-v1.y);
-  vt1.z = (v2.z-v1.z);
-
-  vt2.x = (v3.x-v1.x);
-  vt2.y = (v3.y-v1.y);
-  vt2.z = (v3.z-v1.z);
-
-  vn = cross(vt1,vt2);
-
-  // Normalisation
-  float length = std::sqrt( vn.x*vn.x + vn.y*vn.y + vn.z*vn.z);
-  vn.x /= length;
-  vn.y /= length;
-  vn.z /= length;
-
-  // Produit scalaire
-  float dot = vn.x*light.x + vn.y*light.y + vn.z*light.z;
-
-  float intensity = std::abs(dot);
-
-  //TGAColor ncolor = TGAColor(color.r * intensity, color.g * intensity, color.b * intensity, color.a);
-  fillTriangle(v1, v2, v3, uv1, uv2, uv3, image, tex, z_buffer, intensity, view_port);
 }

@@ -47,8 +47,8 @@ int main(int argc, char** argv) {
 
   for (size_t i=render_width*render_height; i--; z_buffer[i] = -std::numeric_limits<float>::max());
 
-  readobj("./afr/african_head_fun.obj");
-  tex.read_tga_file("./afr/african_head_diffuse.tga");
+  readobj("./diablo3/diablo3_pose.obj");
+  tex.read_tga_file("./diablo3/diablo3_pose_diffuse.tga");
 
   tex.flip_vertically();
   draw(image, tex);
@@ -80,7 +80,7 @@ void readobj(const char *filename){
       iss >> vt.u >> vt.v >> vt.w ;
       texture_coordinates.push_back(vt);
     } else if (!line.compare(0, 2, "vn")) {
-      iss >> trash;
+      iss >> trash >> trash;
       vertex_normal vn;
       iss >> vn.x >> vn.y >> vn.z;
       vertex_normals.push_back(vn);
@@ -110,8 +110,11 @@ void draw(TGAImage &image, TGAImage &tex){
       texture_coordinate uv2 = texture_coordinates[faces[iface].texture_coordinates[1]];
       texture_coordinate uv3 = texture_coordinates[faces[iface].texture_coordinates[2]];
 
+      vertex_normal vn1 = vertex_normals[faces[iface].vertex_normals[0]];
+      vertex_normal vn2 = vertex_normals[faces[iface].vertex_normals[1]];
+      vertex_normal vn3 = vertex_normals[faces[iface].vertex_normals[2]];
 
-      triangle(v1, v2, v3, uv1, uv2, uv3, image, tex, z_buffer, view_port);
+      fillTriangle(v1, v2, v3, uv1, uv2, uv3, vn1, vn2, vn3, image, tex, z_buffer, view_port);
     }
   }
 }
