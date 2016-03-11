@@ -16,7 +16,7 @@ std::vector<vertex_normal> vertex_normals;
 std::vector<face> faces;
 
 void readobj(const char *filename);
-void draw(TGAImage &image, TGAImage &tex);
+void draw(TGAImage &image, TGAImage &diffuse, TGAImage &normal_map, TGAImage &specular_map);
 
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
@@ -31,8 +31,10 @@ matrice view_port = matrice(4, 4);
 
 float z_buffer[render_width*render_height];
 
-int main(int argc, char** argv) {
 
+int main(int argc, char** argv) {
+  TGAImage image(render_width, render_height, TGAImage::RGB);
+  TGAImage diffuse, normal_map, specular_map;
 
   view_port.set(0,0, render_width/2);
   view_port.set(1,1, render_height/2);
@@ -42,16 +44,20 @@ int main(int argc, char** argv) {
   view_port.set(0,3, render_width/2);
   view_port.set(1,3, render_height/2);
 
-  TGAImage image(render_width, render_height, TGAImage::RGB);
-  TGAImage tex;
-
   for (size_t i=render_width*render_height; i--; z_buffer[i] = -std::numeric_limits<float>::max());
 
-  readobj("./diablo3/diablo3_pose.obj");
-  tex.read_tga_file("./diablo3/diablo3_pose_diffuse.tga");
+  readobj("./afr/african_head_fun.obj");
+  diffuse.read_tga_file("./afr/african_head_diffuse.tga");
+  diffuse.flip_vertically();
 
-  tex.flip_vertically();
-  draw(image, tex);
+  normal_map.read_tga_file("./afr/african_head_nm.tga");
+  normal_map.flip_vertically();
+
+  specular_map.read_tga_file("./afr/african_head_spec.tga");
+  specular_map.flip_vertically();
+
+  draw(image, diffuse, normal_map, specular_map);
+
   image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
   image.write_tga_file("output.tga");
   return 0;
@@ -99,7 +105,7 @@ void readobj(const char *filename){
   }
 }
 
-void draw(TGAImage &image, TGAImage &tex){
+void draw(TGAImage &image, TGAImage &diffuse, TGAImage &normal_map, TGAImage &specular_map){
   for (int iface=0; iface < (int)faces.size(); iface++){
     if (faces[iface].vertices.size() > 2){
       vertex v1 = vertices[faces[iface].vertices[0]];
@@ -114,7 +120,7 @@ void draw(TGAImage &image, TGAImage &tex){
       vertex_normal vn2 = vertex_normals[faces[iface].vertex_normals[1]];
       vertex_normal vn3 = vertex_normals[faces[iface].vertex_normals[2]];
 
-      fillTriangle(v1, v2, v3, uv1, uv2, uv3, vn1, vn2, vn3, image, tex, z_buffer, view_port);
+      fillTriangle(v1, v2, v3, uv1, uv2, uv3, vn1, vn2, vn3, image, diffuse, normal_map, specular_map, z_buffer, view_port);
     }
   }
 }

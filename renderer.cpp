@@ -6,7 +6,7 @@ struct Light {
   Light(float X, float Y, float Z) : x(X), y(Y), z(Z) {}
 };
 
-Light light = Light(0., 0., 1.);
+Light light = Light(0., 1., 0.);
 float ambientLight = 0.1f;
 
 vertex cross(vertex vt1, vertex vt2){
@@ -31,8 +31,9 @@ vertex barycentre(vertex v1, vertex v2, vertex v3, int x, int y){
   return v;
 }
 
-void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_coordinate uv2, texture_coordinate uv3, vertex_normal vn1, vertex_normal vn2, vertex_normal vn3, TGAImage &image, TGAImage &tex, float* z_buffer, matrice view_port){
-  double alpha = 70 * M_PI/180;
+void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_coordinate uv2, texture_coordinate uv3, vertex_normal vn1, vertex_normal vn2, vertex_normal vn3, TGAImage &image, TGAImage &diffuse, TGAImage &normal_map, TGAImage &specular_map, float* z_buffer, matrice view_port){
+
+  double alpha = 30 * M_PI/180;
 
   // Matrice de rotation
   matrice r = matrice(4, 4);
@@ -79,18 +80,21 @@ void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, textu
         if ( z > z_buffer[i+j*1000] ) {
           z_buffer[i+j*1000] = z;
 
+          int texture_x = (bar.x*uv1.u + bar.y*uv2.u + bar.z*uv3.u) * diffuse.get_width();
+          int texture_y = (bar.x*uv1.v + bar.y*uv2.v + bar.z*uv3.v) * diffuse.get_height();
 
-          int tex_x = (bar.x*uv1.u + bar.y*uv2.u + bar.z*uv3.u) * tex.get_width();
-          int tex_y = (bar.x*uv1.v + bar.y*uv2.v + bar.z*uv3.v) * tex.get_height();
-/*
-          bar.x = 0;
-          bar.y = 1;
-          bar.z = 0;
-*/
           vertex_normal vn;
+          /*
+          == Gouraud shading ==
           vn.x = vn1.x * bar.x + vn2.x * bar.y + vn3.x * bar.z;
           vn.y = vn1.y * bar.x + vn2.y * bar.y + vn3.y * bar.z;
           vn.z = vn1.z * bar.x + vn2.z * bar.y + vn3.z * bar.z;
+          */
+
+          TGAColor normal_m = normal_map.get(texture_x, texture_y);
+          vn.x = normal_m.r;
+          vn.y = normal_m.g;
+          vn.z = normal_m.b;
 
           float length = std::sqrt( vn.x*vn.x + vn.y*vn.y + vn.z*vn.z);
           vn.x /= length;
@@ -101,7 +105,7 @@ void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, textu
 
           dot = std::min( std::max( dot, ambientLight), 1.f);
 
-          TGAColor color = tex.get(tex_x, tex_y);
+          TGAColor color = diffuse.get(texture_x, texture_y);
           color.r *= dot;
           color.g *= dot;
           color.b *= dot;
