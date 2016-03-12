@@ -1,27 +1,15 @@
 #include "renderer.h"
 
-struct Light {
-  float x, y, z;
-
-  Light(float X, float Y, float Z) : x(X), y(Y), z(Z) {}
-};
+typedef vertex Light;
 
 Light light = Light(0., 1., 0.);
 float ambientLight = 0.1f;
-
-vertex cross(vertex vt1, vertex vt2){
-  vertex vn;
-  vn.x = (vt1.y*vt2.z-vt1.z*vt2.y);
-  vn.y = (vt1.z*vt2.x-vt1.x*vt2.z);
-  vn.z = (vt1.x*vt2.y-vt1.y*vt2.x);
-  return vn;
-}
 
 vertex barycentre(vertex v1, vertex v2, vertex v3, int x, int y){
   vertex vt1 = vertex(v3.x-v1.x, v2.x-v1.x, v1.x-x);
   vertex vt2 = vertex(v3.y-v1.y, v2.y-v1.y, v1.y-y);
 
-  vertex u = cross(vt1, vt2);
+  vertex u = vt1 * vt2;
 
   vertex v;
   v.x = 1. - (u.x+u.y)/u.z;
@@ -31,36 +19,61 @@ vertex barycentre(vertex v1, vertex v2, vertex v3, int x, int y){
   return v;
 }
 
-void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_coordinate uv2, texture_coordinate uv3, vertex_normal vn1, vertex_normal vn2, vertex_normal vn3, TGAImage &image, TGAImage &diffuse, TGAImage &normal_map, TGAImage &specular_map, float* z_buffer, matrice view_port){
-
-  double alpha = 30 * M_PI/180;
+matrice rotation(float angle, char axis){
+  double alpha = angle * M_PI/180;
 
   // Matrice de rotation
-  matrice r = matrice(4, 4);
-  r.set(0, 0, cos(alpha));
-  r.set(0, 2, -sin(alpha));
-  r.set(2, 2, cos(alpha));
-  r.set(2, 0, sin(alpha));
-  r.set(1, 1, 1);
-  r.set(3, 3, 1);
+  matrice mres = matrice(4, 4).identity();
 
+  int i, j;
+  if ( axis == 'x'){
+    i = 1; j = 2;
+  }
+  if ( axis == 'y'){
+    i = 0; j = 2;
+  }
+  if ( axis == 'z'){
+    i = 0; j = 1;
+  }
+  mres.set(i, i, cos(alpha));
+  mres.set(i, j, -sin(alpha));
+  mres.set(j, j, cos(alpha));
+  mres.set(j, i, sin(alpha));
+  return mres;
+}
+
+matrice projection() {
   // Matrice de projection
-  matrice hard_coded = matrice(4, 4);
-  hard_coded.set(0,0, 1.);
-  hard_coded.set(1,1, 1.);
-  hard_coded.set(2,2, 1.);
-  hard_coded.set(3,3, 1.);
+  matrice hard_coded = matrice(4, 4).identity();
   hard_coded.set(3,2, -1/3.);
+  return hard_coded;
+}
 
-  matrice res = view_port.multiply(hard_coded.multiply(r));
 
-  matrice m1 = res.multiply(v1.toMat());
-  matrice m2 = res.multiply(v2.toMat());
-  matrice m3 = res.multiply(v3.toMat());
+vertex_normal normal_mapping_global(TGAColor nColor){
+  vertex_normal vn;
+  vn.x = nColor.r;
+  vn.y = nColor.g;
+  vn.z = nColor.b;
+  return vn;
+}
 
-  v1 = vertex(m1);
-  v2 = vertex(m2);
-  v3 = vertex(m3);
+vertex_normal gouraud_shading(vertex_normal vn1, vertex_normal vn2, vertex_normal vn3, vertex bar){
+  vertex_normal vn;
+  vn.x = vn1.x * bar.x + vn2.x * bar.y + vn3.x * bar.z;
+  vn.y = vn1.y * bar.x + vn2.y * bar.y + vn3.y * bar.z;
+  vn.z = vn1.z * bar.x + vn2.z * bar.y + vn3.z * bar.z;
+  return vn;
+}
+
+
+void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_coordinate uv2, texture_coordinate uv3, vertex_normal vn1, vertex_normal vn2, vertex_normal vn3, TGAImage &image, TGAImage &diffuse, TGAImage &normal_map, TGAImage &specular_map, float* z_buffer, matrice view_port){
+
+  matrice transforms = view_port * projection() * rotation(20, 'x') * rotation(45, 'y');
+
+  v1 = v1 * transforms;
+  v2 = v2 * transforms;
+  v3 = v3 * transforms;
 
   int minx = std::min(std::min(v1.x, v2.x), v3.x);
   int miny = std::min(std::min(v1.y, v2.y), v3.y);
@@ -83,32 +96,15 @@ void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, textu
           int texture_x = (bar.x*uv1.u + bar.y*uv2.u + bar.z*uv3.u) * diffuse.get_width();
           int texture_y = (bar.x*uv1.v + bar.y*uv2.v + bar.z*uv3.v) * diffuse.get_height();
 
-          vertex_normal vn;
-          /*
-          == Gouraud shading ==
-          vn.x = vn1.x * bar.x + vn2.x * bar.y + vn3.x * bar.z;
-          vn.y = vn1.y * bar.x + vn2.y * bar.y + vn3.y * bar.z;
-          vn.z = vn1.z * bar.x + vn2.z * bar.y + vn3.z * bar.z;
-          */
+          //vertex_normal vn = gouraud_shading(vn1, vn2, vn3, bar);
+          vertex_normal vn = normal_mapping_global(normal_map.get(texture_x, texture_y));
+          vn = vn.normalize();
 
-          TGAColor normal_m = normal_map.get(texture_x, texture_y);
-          vn.x = normal_m.r;
-          vn.y = normal_m.g;
-          vn.z = normal_m.b;
-
-          float length = std::sqrt( vn.x*vn.x + vn.y*vn.y + vn.z*vn.z);
-          vn.x /= length;
-          vn.y /= length;
-          vn.z /= length;
-
-          float dot = vn.x*light.x + vn.y*light.y + vn.z*light.z;
-
+          float dot = vn.dot(light);
           dot = std::min( std::max( dot, ambientLight), 1.f);
 
           TGAColor color = diffuse.get(texture_x, texture_y);
-          color.r *= dot;
-          color.g *= dot;
-          color.b *= dot;
+          color.r *= dot; color.g *= dot; color.b *= dot;
 
           image.set(i, j, color);
         }
