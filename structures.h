@@ -13,7 +13,6 @@ struct ScreenCoord{
   int x, y;
 };
 
-
 struct matrice {
   float *data;
   unsigned int rows;
@@ -90,9 +89,25 @@ struct vertex{
     return vres;
   }
 
+  vertex operator*(float coeff){
+    vertex vres;
+    vres.x = x * coeff;
+    vres.y = y * coeff;
+    vres.z = z * coeff;
+    return vres;
+  }
+
   vertex operator*(matrice m){
     matrice mtmp = toMat();
     return vertex( m * mtmp );
+  }
+
+  vertex operator-(vertex vt){
+    vertex vres;
+    vres.x = x - vt.x;
+    vres.y = y - vt.y;
+    vres.z = z - vt.z;
+    return vres;
   }
 
   float dot(vertex vt){
