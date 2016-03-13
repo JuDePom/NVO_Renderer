@@ -2,8 +2,8 @@
 
 typedef vertex Light;
 
-Light light = Light(0., 1., 0.);
-float ambientLight = 0.1f;
+Light light = Light(1.f, 1.f, 0.f).normalize();
+float ambientLight = 0.05f;
 
 vertex barycentre(vertex v1, vertex v2, vertex v3, int x, int y){
   vertex vt1 = vertex(v3.x-v1.x, v2.x-v1.x, v1.x-x);
@@ -45,7 +45,7 @@ matrice rotation(float angle, char axis){
 matrice projection() {
   // Matrice de projection
   matrice hard_coded = matrice(4, 4).identity();
-  hard_coded.set(3,2, -1/3.);
+  hard_coded.set(3,2, -1/5.);
   return hard_coded;
 }
 
@@ -66,10 +66,8 @@ vertex_normal gouraud_shading(vertex_normal vn1, vertex_normal vn2, vertex_norma
   return vn;
 }
 
-
 void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, texture_coordinate uv2, texture_coordinate uv3, vertex_normal vn1, vertex_normal vn2, vertex_normal vn3, TGAImage &image, TGAImage &diffuse, TGAImage &normal_map, TGAImage &specular_map, float* z_buffer, matrice view_port){
-
-  matrice transforms = view_port * projection() * rotation(20, 'x') * rotation(45, 'y');
+  matrice transforms = view_port * projection() * rotation(10, 'x') * rotation(20, 'y');
 
   v1 = v1 * transforms;
   v2 = v2 * transforms;
@@ -101,10 +99,19 @@ void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, textu
           vn = vn.normalize();
 
           float dot = vn.dot(light);
-          dot = std::min( std::max( dot, ambientLight), 1.f);
+
+          vertex vSpec = (vn * dot) * 2.f;
+          vSpec = vSpec - light;
+
+          TGAColor specColor = specular_map.get(texture_x, texture_y);
+          float specular = std::pow( std::max(vSpec.z, 0.f), 5 + specColor.b);
+
+          dot = std::max( dot + (1.0f * specular), ambientLight );
 
           TGAColor color = diffuse.get(texture_x, texture_y);
-          color.r *= dot; color.g *= dot; color.b *= dot;
+          color.r = std::min(color.r * dot, 255.f);
+          color.g = std::min(color.g * dot, 255.f);
+          color.b = std::min(color.b * dot, 255.f);
 
           image.set(i, j, color);
         }
