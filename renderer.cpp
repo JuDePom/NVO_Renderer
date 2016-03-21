@@ -2,7 +2,9 @@
 
 typedef vertex Light;
 
-Light light = Light(1.f, 1.f, 0.f).normalize();
+Light lightR = Light(1.f, 0.f, 0.f).normalize();
+Light lightB = Light(1.f, 0.2f, 0.f).normalize();
+
 float ambientLight = 0.05f;
 
 vertex barycentre(vertex v1, vertex v2, vertex v3, int x, int y){
@@ -98,20 +100,27 @@ void fillTriangle(vertex v1, vertex v2, vertex v3, texture_coordinate uv1, textu
           vertex_normal vn = normal_mapping_global(normal_map.get(texture_x, texture_y));
           vn = vn.normalize();
 
-          float dot = vn.dot(light);
+          float lR = vn.dot(lightR);
+          float lB = vn.dot(lightB);
 
-          vertex vSpec = (vn * dot) * 2.f;
-          vSpec = vSpec - light;
+          vertex vSpecR = (vn * lR) * 2.f;
+          vSpecR = vSpecR - lightR;
+
+          vertex vSpecB = (vn * lB) * 2.f;
+          vSpecB = vSpecB - lightB;
 
           TGAColor specColor = specular_map.get(texture_x, texture_y);
-          float specular = std::pow( std::max(vSpec.z, 0.f), 5 + specColor.b);
 
-          dot = std::max( dot + (1.0f * specular), ambientLight );
+          float specularR = std::pow( std::max(vSpecR.z, 0.f), 5 + specColor.b);
+          float specularB = std::pow( std::max(vSpecB.z, 0.f), 5 + specColor.b);
+
+          lR = std::max( lR + (1.0f * specularR), ambientLight );
+          lB = std::max( lB + (1.0f * specularB), ambientLight );
 
           TGAColor color = diffuse.get(texture_x, texture_y);
-          color.r = std::min(color.r * dot, 255.f);
-          color.g = std::min(color.g * dot, 255.f);
-          color.b = std::min(color.b * dot, 255.f);
+          color.r = std::min(255.f * lR, 255.f);
+          color.g = std::min(0.f, 255.f);
+          color.b = std::min(255.f * lB, 255.f);
 
           image.set(i, j, color);
         }
